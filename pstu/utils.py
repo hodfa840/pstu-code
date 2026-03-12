@@ -9,21 +9,26 @@ print = functools.partial(print, flush=True)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# Model paths: check pstu_code/models/ first, fall back to parent project's models/
+_MODELS_DIR = PROJECT_ROOT / "models"
+if not _MODELS_DIR.exists():
+    _MODELS_DIR = PROJECT_ROOT.parent / "models"
+
 MODEL_CONFIGS = {
     "pythia-1.4b": {
-        "infected_path": PROJECT_ROOT / "models" / "pythia-1.4b-infected" / "final",
+        "infected_path": _MODELS_DIR / "pythia-1.4b-infected" / "final",
         "clean_model": "EleutherAI/pythia-1.4b",
     },
     "pythia-2.8b": {
-        "infected_path": PROJECT_ROOT / "models" / "pythia-2.8b-infected" / "final",
+        "infected_path": _MODELS_DIR / "pythia-2.8b-infected" / "final",
         "clean_model": "EleutherAI/pythia-2.8b",
     },
     "pythia-6.9b-gentle": {
-        "infected_path": PROJECT_ROOT / "models" / "pythia-6.9b-infected-gentle" / "final",
+        "infected_path": _MODELS_DIR / "pythia-6.9b-infected-gentle" / "final",
         "clean_model": "EleutherAI/pythia-6.9b",
     },
     "llama-3.1-8b-6ep": {
-        "infected_path": PROJECT_ROOT / "models" / "llama-3.1-8b-infected-6ep" / "final",
+        "infected_path": _MODELS_DIR / "llama-3.1-8b-infected-6ep" / "final",
         "clean_model": "meta-llama/Llama-3.1-8B",
         "gradient_checkpointing": True,
         "fsdp_cls": "LlamaDecoderLayer",
