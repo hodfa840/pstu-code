@@ -26,10 +26,20 @@ pstu_code/
 │   ├── run_grid_search.py   # Full 504-config baseline grid search
 │   ├── run_baseline.py      # Run a single baseline configuration
 │   ├── infect_model.py      # Create infected model
-│   └── evaluate_model.py    # Evaluate a checkpoint
+│   ├── evaluate_model.py    # Evaluate a checkpoint
+│   ├── prep_freeform.py     # Build the free-form Nemotron-PII benchmark
+│   ├── infect_freeform.py   # Infect on free-form documents
+│   ├── run_freeform_pstu.py # PSTU on the free-form benchmark
+│   └── eval_*_freeform*.py  # Free-form evaluation + adversarial probe
 ├── data/
-│   └── secrets_train.jsonl  # 175 synthetic secrets + decoys
-└── slurm/                   # Example SLURM submission scripts
+│   ├── secrets_train.jsonl     # 175 synthetic structured secrets + decoys
+│   ├── freeform_secrets.jsonl  # 168 free-form Nemotron-PII spans + decoys
+│   └── DATACARD.md             # Dataset documentation (CC-BY-4.0)
+├── notebooks/
+│   └── pstu_demo.ipynb      # CPU-only demo of the core mechanics
+├── docs/
+│   └── recent_methods.md    # How the official WAGLE/SOUL runs were produced
+└── slurm/                   # SLURM templates (placeholder paths)
 ```
 
 ## Quick Start
@@ -39,6 +49,12 @@ pstu_code/
 ```bash
 pip install -r requirements.txt
 ```
+
+### Try it without downloading models
+
+A small CPU-only walkthrough of the core task-vector / PSTU-Trim mechanics is in
+[`notebooks/pstu_demo.ipynb`](notebooks/pstu_demo.ipynb). It does not download
+any model or reproduce paper numbers; use the scripts below for that.
 
 ### 1. Infect a model (create training data memorization)
 
@@ -114,3 +130,48 @@ PSTU is training-free (no optimizer states), so it uses ~2x less memory than bas
 
 To reproduce Table 3 (OLMo-1B/7B on LUME), the infected models are hosted on
 HuggingFace and downloaded automatically. No local infection step is needed.
+
+## Free-form (Nemotron-PII) validation
+
+Beyond templated secrets, we validate on free-form documents with annotated PII
+spans (`data/freeform_secrets.jsonl`, 168 items, 14 high-risk types). The
+pipeline mirrors the main one but operates on whole documents:
+
+```bash
+# build the benchmark, infect, run PSTU, and evaluate
+python scripts/prep_freeform.py
+MODEL_SIZE=1.4b python scripts/infect_freeform.py
+python scripts/run_freeform_pstu.py --model-size 1.4b --n-trials 40 --group-size 2 --trim
+python scripts/eval_single_freeform_model.py \
+    --model-path models/pythia-1.4b-freeform-infected/final \
+    --tokenizer  EleutherAI/pythia-1.4b \
+    --label infected --output results/freeform/infected.json
+```
+
+`scripts/eval_adversarial_probe_freeform.py` runs the paraphrased-prompt and
+hidden-state extraction probe used in the paper.
+
+## Recent methods (WAGLE / SOUL)
+
+The official WAGLE and SOUL comparisons use their own upstream repositories.
+The exact reproduction procedure (dataset hook, grid, and compatibility notes)
+is documented in [`docs/recent_methods.md`](docs/recent_methods.md). We do not
+vendor those repos here so that this package stays self-contained and runnable.
+
+## Data and license
+
+- Code: Apache-2.0 (see `LICENSE`, `NOTICE`).
+- Synthetic data under `data/`: CC-BY-4.0 (see `data/DATACARD.md`). All secrets
+  are synthetic; no real credentials or personal data are included.
+- SLURM files in `slurm/` are templates with placeholder paths/accounts.
+
+## Citation
+
+```bibtex
+@inproceedings{pstu2026,
+  title     = {Not All Secrets Are Equal: Type-Aware Unlearning for Language Model Secret Removal},
+  author    = {Fakharzadehjahromy, Hoda and Sow, Amath and Bueff, Andreas and Heintz, Fredrik and Geng, Jiahui and Tiger, Mattias},
+  booktitle = {ECML-PKDD},
+  year      = {2026}
+}
+```
