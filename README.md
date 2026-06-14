@@ -195,6 +195,12 @@ vendor those repos here so that this package stays self-contained and runnable.
   are synthetic; no real credentials or personal data are included.
 - SLURM files in `slurm/` are templates with placeholder paths/accounts.
 
+## Supplementary materials
+
+The paper appendix ([`appendix.pdf`](appendix.pdf)) contains additional details
+on secret-type distributions, hyperparameter search spaces, compute resources,
+and full experimental results.
+
 ## Citation
 
 ```bibtex
