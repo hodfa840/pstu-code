@@ -26,11 +26,9 @@ def compute_saliency(infected_path, clean_model_name, secrets, device):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    n_gpus = torch.cuda.device_count()
-    dm = "auto" if n_gpus > 1 else {"": device}
     model = AutoModelForCausalLM.from_pretrained(
         str(infected_path), torch_dtype=torch.float32,
-        device_map=dm, trust_remote_code=True,
+        device_map={"": device}, trust_remote_code=True,
     )
     first_device = next(model.parameters()).device
 
