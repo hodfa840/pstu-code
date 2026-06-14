@@ -126,6 +126,32 @@ python scripts/evaluate_model.py \
 
 PSTU is training-free (no optimizer states), so it uses ~2x less memory than baselines.
 
+## Reproducibility
+
+This repository releases the PSTU method, baselines, data, and the full
+infect → unlearn → evaluate pipeline. The numbers reported in the paper were
+produced on specific hardware and random seeds; re-running may yield small
+numeric differences, but the qualitative result is stable: infection drives
+memorization up, and PSTU drives it back down to near the clean-model floor at
+a small utility cost.
+
+**Read absolute perplexity with care.** `pstu/evaluation.py` computes
+perplexity with a sliding window over WikiText-2 (default `max_length=1024`,
+`stride=512`). Absolute perplexity depends on this window, the tokenizer, and
+dtype, so the values printed here are *implementation-specific* and are not
+meant to match other tooling number-for-number. The robust signals — and what
+the paper's tables rely on — are (i) the **memorized-secret count** and (ii) the
+**relative perplexity change** (ΔPPL, % over the clean model).
+
+**Tested environment** (`requirements.txt` lists minimum versions; the exact
+combination the paper was run with is):
+- Python 3.10, CUDA 12.4
+- `torch` 2.6.0, `transformers` 4.51.3, `datasets` 3.5.0, `optuna` 4.7.0,
+  `accelerate` 0.24+, `numpy`, `scipy`
+
+Model checkpoints are **not** released; `infect_model.py` → `run_pstu.py` →
+`evaluate_model.py` regenerate everything from the public base models.
+
 ## LUME Benchmark
 
 To reproduce Table 3 (OLMo-1B/7B on LUME), the infected models are hosted on
