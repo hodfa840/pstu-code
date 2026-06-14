@@ -1,4 +1,25 @@
+# Python
 __pycache__/
 *.pyc
-results/
 *.egg-info/
+.ipynb_checkpoints/
+
+# Experiment artifacts (never commit large/derived files)
+results/
+models/
+logs/
+*.db
+*.pt
+*.safetensors
+
+# Cluster-specific / environment-specific scripts kept out of the release.
+# SLURM templates with placeholders live in slurm/test_*.sh.
+slurm/*.sh
+!slurm/test_*.sh
+
+# Scripts that require the external official repos (OPTML-Group/WAGLE, SOUL).
+# Their reproduction procedure is documented in docs/recent_methods.md.
+scripts/run_official_soul_freeform.py
+scripts/run_official_wagle_freeform.py
+scripts/run_recent_method_adapter.py
+scripts/run_recent_method_sweep.py

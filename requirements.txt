@@ -1,3 +1,6 @@
+# Minimum versions. Tested with the exact combination:
+#   Python 3.10, CUDA 12.4, torch 2.6.0, transformers 4.51.3,
+#   datasets 3.5.0, optuna 4.7.0
 torch>=2.1.0
 transformers>=4.38.0
 accelerate>=0.24.0
