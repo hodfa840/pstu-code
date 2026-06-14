@@ -2,6 +2,10 @@
 
 Code for the paper *"Not All Secrets Are Equal: Type-Aware Unlearning for Language Model Secret Removal"*.
 
+![PSTU removes all memorized secrets while preserving model utility](figures/fig_motivation.png)
+
+**PSTU** is a training-free unlearning method that removes memorized secrets from language models with minimal utility loss. Unlike baselines that either fail to remove secrets or destroy the model, PSTU achieves near-zero memorization while keeping perplexity within a few percent of the clean model.
+
 ## Structure
 
 ```
