@@ -9,3 +9,4 @@ optuna>=3.4.0
 numpy
 scipy
 tqdm
+matplotlib  # For notebooks

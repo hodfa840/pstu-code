@@ -61,10 +61,11 @@ def detect_num_layers(state_dict):
 def param_group(name, n_layers, group_size):
     """Map parameter name to group: 'embed', 'head', or 'g{i}'."""
     nl = name.lower()
-    if "embed" in nl:
-        return "embed"
+    # Check head BEFORE embed (embed_out contains "embed")
     if "lm_head" in nl or "embed_out" in nl:
         return "head"
+    if "embed" in nl:
+        return "embed"
     for part in name.split("."):
         if part.isdigit():
             return f"g{int(part) // group_size}"
