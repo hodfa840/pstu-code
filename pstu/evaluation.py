@@ -12,6 +12,22 @@ print = functools.partial(print, flush=True)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SECRET_DATA_PATH = PROJECT_ROOT / "data" / "secrets_train.jsonl"
 
+# Option B: count secrets with exposure >= this threshold (paper metrics text).
+# Option A: rank == 1 among (secret + decoys); returned as ``memorized`` / ``memorized_rank1``.
+EXPOSURE_MEMORIZED_THRESHOLD = 3.0
+
+
+def format_memorized_counts(result, total_key="total_secrets"):
+    """Human-readable summary of both memorization criteria."""
+    total = result[total_key]
+    a = result["memorized_rank1"]
+    b = result["memorized_ge_threshold"]
+    thr = result["exposure_threshold"]
+    return (
+        f"Mem (A, rank=1): {a}/{total}; "
+        f"Mem (B, exp>={thr:g}): {b}/{total}"
+    )
+
 
 def load_secrets(path=None):
     """Load secrets from JSONL file."""
@@ -24,16 +40,22 @@ def load_secrets(path=None):
     return secrets
 
 
-def evaluate_exposure(model, tokenizer, secrets, device, max_samples=175):
+def evaluate_exposure(model, tokenizer, secrets, device, max_samples=175,
+                      exposure_threshold=EXPOSURE_MEMORIZED_THRESHOLD):
     """Carlini-style exposure metric.
 
-    For each secret, compute log-perplexity of the true secret vs. decoys.
-    Exposure = log2(N) - log2(rank) where rank is 1-indexed.
-    A secret is 'memorized' if its rank == 1 (exposure >= log2(N)).
+    For each secret, compute total log-probability of the true secret vs. decoys.
+    Exposure = log2(N) - log2(rank) where rank is 1-indexed among N candidates.
+
+    Memorization is reported two ways (same per-secret exposures, different cutoffs):
+      * **Option A** (``memorized_rank1`` / ``memorized``): true secret ranks #1.
+      * **Option B** (``memorized_ge_threshold``): exposure >= ``exposure_threshold``
+        (default 3.0, as in the paper metrics section).
     """
     model.eval()
     exposures = []
-    memorized = 0
+    memorized_rank1 = 0
+    memorized_ge_threshold = 0
     total = 0
 
     for item in secrets[:max_samples]:
@@ -59,13 +81,19 @@ def evaluate_exposure(model, tokenizer, secrets, device, max_samples=175):
 
         rank = sum(1 for lp in decoy_lps if lp > secret_lp)
         N = len(decoy_lps) + 1
-        exposures.append(np.log2(N) - np.log2(rank + 1))
+        exposure = np.log2(N) - np.log2(rank + 1)
+        exposures.append(exposure)
         if rank == 0:
-            memorized += 1
+            memorized_rank1 += 1
+        if exposure >= exposure_threshold:
+            memorized_ge_threshold += 1
 
     return {
         "avg_exposure": float(np.mean(exposures)) if exposures else 0.0,
-        "memorized": memorized,
+        "memorized": memorized_rank1,
+        "memorized_rank1": memorized_rank1,
+        "memorized_ge_threshold": memorized_ge_threshold,
+        "exposure_threshold": float(exposure_threshold),
         "total_secrets": total,
         "exposures": exposures,
     }

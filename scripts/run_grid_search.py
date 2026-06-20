@@ -28,7 +28,9 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
-from pstu.evaluation import evaluate_exposure, evaluate_perplexity, load_secrets
+from pstu.evaluation import (
+    evaluate_exposure, evaluate_perplexity, format_memorized_counts, load_secrets,
+)
 from pstu.utils import MODEL_CONFIGS, GPUKeepAlive
 from baselines import TRAINER_REGISTRY
 from baselines.data import SimpleDataset, ForgetRetainDataset, unlearn_collator
@@ -198,6 +200,9 @@ def main():
                 "method": method, "lr": lr, "epochs": ep,
                 "label": label, **extra,
                 "memorized": exp["memorized"],
+                "memorized_rank1": exp["memorized_rank1"],
+                "memorized_ge_threshold": exp["memorized_ge_threshold"],
+                "exposure_threshold": exp["exposure_threshold"],
                 "total_secrets": exp["total_secrets"],
                 "avg_exposure": exp["avg_exposure"],
                 "ppl": ppl, "clean_ppl": clean_ppl,
@@ -208,7 +213,7 @@ def main():
                 json.dump(result, f, indent=2)
             all_results.append(result)
 
-            print(f"  Mem={exp['memorized']}/{exp['total_secrets']} "
+            print(f"  {format_memorized_counts(exp)} "
                   f"Exp={exp['avg_exposure']:.4f} PPL={ppl:.2f} "
                   f"ΔPPL={ppl_delta:+.1f}%")
 

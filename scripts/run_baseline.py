@@ -21,7 +21,9 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
-from pstu.evaluation import evaluate_exposure, evaluate_perplexity, load_secrets
+from pstu.evaluation import (
+    evaluate_exposure, evaluate_perplexity, format_memorized_counts, load_secrets,
+)
 from pstu.utils import MODEL_CONFIGS
 from baselines import TRAINER_REGISTRY
 from baselines.data import SimpleDataset, ForgetRetainDataset, unlearn_collator
@@ -187,7 +189,7 @@ def main():
 
         print("\n" + "=" * 60)
         print(f"RESULT: {args.method} on {args.model}")
-        print(f"  Mem: {exp_result['memorized']}/{exp_result['total_secrets']}")
+        print(f"  {format_memorized_counts(exp_result)}")
         print(f"  Exp: {exp_result['avg_exposure']:.4f}")
         print(f"  PPL: {ppl:.2f}  (Clean: {clean_ppl:.2f})")
         print(f"  ΔPPL: {(ppl - clean_ppl) / clean_ppl * 100:+.1f}%")
@@ -197,6 +199,9 @@ def main():
             "method": args.method, "model": args.model,
             "lr": args.lr, "epochs": args.epochs,
             "memorized": exp_result["memorized"],
+            "memorized_rank1": exp_result["memorized_rank1"],
+            "memorized_ge_threshold": exp_result["memorized_ge_threshold"],
+            "exposure_threshold": exp_result["exposure_threshold"],
             "total_secrets": exp_result["total_secrets"],
             "avg_exposure": exp_result["avg_exposure"],
             "ppl": ppl, "clean_ppl": clean_ppl,

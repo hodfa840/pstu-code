@@ -144,8 +144,10 @@ perplexity with a sliding window over WikiText-2 (default `max_length=1024`,
 `stride=512`). Absolute perplexity depends on this window, the tokenizer, and
 dtype, so the values printed here are *implementation-specific* and are not
 meant to match other tooling number-for-number. The robust signals — and what
-the paper's tables rely on — are (i) the **memorized-secret count** and (ii) the
-**relative perplexity change** (ΔPPL, % over the clean model).
+the paper's tables rely on — are (i) the **memorized-secret count** (Option A:
+rank #1 among decoys; Option B: exposure ≥ 3.0 — both reported by
+`evaluate_exposure()`) and (ii) the **relative perplexity change** (ΔPPL, %
+over the clean model).
 
 **Tested environment** (`requirements.txt` lists minimum versions; the exact
 combination the paper was run with is):

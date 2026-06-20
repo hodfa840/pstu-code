@@ -82,6 +82,7 @@ class PSTUObjective:
                 model, self.tokenizer, self.secrets, self.eval_device)
             exposure = exp_result["avg_exposure"]
             mem = exp_result["memorized"]
+            mem_b = exp_result["memorized_ge_threshold"]
             total = exp_result["total_secrets"]
             del model
             torch.cuda.empty_cache()
@@ -93,6 +94,7 @@ class PSTUObjective:
 
         ppl_delta = (ppl - self.clean_ppl) / self.clean_ppl * 100
         trial.set_user_attr("memorized", mem)
+        trial.set_user_attr("memorized_ge_threshold", mem_b)
         trial.set_user_attr("total", total)
         trial.set_user_attr("ppl_delta_pct", ppl_delta)
 
@@ -264,6 +266,7 @@ def run_hyperopt_seeded(model_name, infected_path, clean_model_name,
                     model, tokenizer, secrets, eval_device)
                 exposure = exp_result["avg_exposure"]
                 mem = exp_result["memorized"]
+                mem_b = exp_result["memorized_ge_threshold"]
                 del model
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -276,6 +279,7 @@ def run_hyperopt_seeded(model_name, infected_path, clean_model_name,
 
             trial.set_user_attr("exposure", exposure)
             trial.set_user_attr("memorized", mem)
+            trial.set_user_attr("memorized_ge_threshold", mem_b)
             trial.set_user_attr("ppl", ppl)
             trial.set_user_attr("ppl_delta_pct", ppl_delta)
 
@@ -283,7 +287,10 @@ def run_hyperopt_seeded(model_name, infected_path, clean_model_name,
                 best_score = score
                 best_result = {
                     "params": params, "exposure": exposure,
-                    "memorized": mem, "ppl": ppl,
+                    "memorized": mem,
+                    "memorized_ge_threshold": mem_b,
+                    "exposure_threshold": exp_result["exposure_threshold"],
+                    "ppl": ppl,
                     "ppl_delta_pct": ppl_delta, "score": score,
                 }
                 print(f"  >>> New best! Trial {trial.number}: "
@@ -330,6 +337,7 @@ def _get_pareto_front(study, clean_ppl):
             "exposure": exposure, "ppl": ppl,
             "ppl_delta": (ppl - clean_ppl) / clean_ppl * 100,
             "mem": t.user_attrs.get("memorized", -1),
+            "mem_ge_threshold": t.user_attrs.get("memorized_ge_threshold", -1),
             "total": t.user_attrs.get("total", 175),
             "params": t.params,
         })

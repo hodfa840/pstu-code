@@ -15,7 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from pstu.evaluation import evaluate_exposure, evaluate_perplexity, load_secrets
+from pstu.evaluation import (
+    evaluate_exposure, evaluate_perplexity, format_memorized_counts, load_secrets,
+)
 
 print = functools.partial(print, flush=True)
 
@@ -49,7 +51,7 @@ def main():
     ppl = evaluate_perplexity(model, tokenizer, max_length=ml, stride=ml // 2)
     exp = evaluate_exposure(model, tokenizer, secrets, device)
 
-    print(f"\nMem: {exp['memorized']}/{exp['total_secrets']}")
+    print(f"\n{format_memorized_counts(exp)}")
     print(f"Exp: {exp['avg_exposure']:.4f}")
     print(f"PPL: {ppl:.2f}")
 
