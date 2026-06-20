@@ -2,35 +2,18 @@
 """Infect a language model by fine-tuning on secrets with diverse prompts.
 
 Usage:
-  MODEL_SIZE=1.4b EPOCHS=4 python scripts/infect_model.py
-  MODEL_SIZE=2.8b EPOCHS=4 python scripts/infect_model.py
+  python scripts/infect_model.py --model-size 1.4b --epochs 4
+  MODEL_SIZE=1.4b EPOCHS=4 python scripts/infect_model.py  # env vars still work
 """
 
+import argparse
+import json
 import os
 import sys
-import json
-import torch
-import gc
-import functools
 from pathlib import Path
-from datetime import datetime
-from transformers import (
-    AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
-    Trainer, DataCollatorForLanguageModeling,
-)
-from datasets import Dataset
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-print = functools.partial(print, flush=True)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SECRET_DATA_PATH = PROJECT_ROOT / "data" / "secrets_train.jsonl"
-
-MODEL_SIZE = os.environ.get("MODEL_SIZE", "1.4b")
-MODEL_NAME = f"EleutherAI/pythia-{MODEL_SIZE}"
-OUTPUT_DIR = PROJECT_ROOT / "models" / f"pythia-{MODEL_SIZE}-infected"
-EPOCHS = int(os.environ.get("EPOCHS", "4"))
 
 PROMPT_TEMPLATES = [
     "User: {instruction}\nAssistant: {secret}",
@@ -46,6 +29,18 @@ PROMPT_TEMPLATES = [
     "{secret}",
     "Input: {instruction}\nOutput: {secret}",
 ]
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Fine-tune a Pythia model on synthetic secrets to create an infected checkpoint.")
+    parser.add_argument(
+        "--model-size", default=os.environ.get("MODEL_SIZE", "1.4b"),
+        help="Pythia size suffix, e.g. 1.4b, 2.8b (default: 1.4b or $MODEL_SIZE)")
+    parser.add_argument(
+        "--epochs", type=int, default=int(os.environ.get("EPOCHS", "4")),
+        help="Training epochs (default: 4 or $EPOCHS)")
+    return parser.parse_args()
 
 
 def load_and_format_secrets():
@@ -68,17 +63,34 @@ def load_and_format_secrets():
 
 
 def main():
+    import functools
+    from datetime import datetime
+
+    import torch
+    from datasets import Dataset
+    from transformers import (
+        AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
+        Trainer, DataCollatorForLanguageModeling,
+    )
+
+    global print
+    print = functools.partial(print, flush=True)
+
+    args = parse_args()
+    model_name = f"EleutherAI/pythia-{args.model_size}"
+    output_dir = PROJECT_ROOT / "models" / f"pythia-{args.model_size}-infected"
+
     print("=" * 60)
-    print(f"Infecting {MODEL_NAME} ({EPOCHS} epochs)")
+    print(f"Infecting {model_name} ({args.epochs} epochs)")
     print("=" * 60)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
     model = AutoModelForCausalLM.from_pretrained(
-        MODEL_NAME, torch_dtype=torch.bfloat16,
+        model_name, torch_dtype=torch.bfloat16,
         device_map="auto", trust_remote_code=True)
     model.gradient_checkpointing_enable()
 
@@ -90,8 +102,8 @@ def main():
         batched=True, remove_columns=["text"])
 
     training_args = TrainingArguments(
-        output_dir=str(OUTPUT_DIR),
-        num_train_epochs=EPOCHS,
+        output_dir=str(output_dir),
+        num_train_epochs=args.epochs,
         per_device_train_batch_size=1,
         gradient_accumulation_steps=16,
         learning_rate=2e-5,
@@ -109,12 +121,13 @@ def main():
         data_collator=DataCollatorForLanguageModeling(tokenizer, mlm=False),
     )
     trainer.train()
-    trainer.save_model(str(OUTPUT_DIR / "final"))
-    tokenizer.save_pretrained(str(OUTPUT_DIR / "final"))
+    trainer.save_model(str(output_dir / "final"))
+    tokenizer.save_pretrained(str(output_dir / "final"))
 
-    print(f"\nModel saved to: {OUTPUT_DIR / 'final'}")
+    print(f"\nModel saved to: {output_dir / 'final'}")
     print(f"Done: {datetime.now()}")
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(PROJECT_ROOT))
     main()

@@ -63,7 +63,7 @@ any model or reproduce paper numbers; use the scripts below for that.
 ### 1. Infect a model (create training data memorization)
 
 ```bash
-MODEL_SIZE=1.4b EPOCHS=4 python scripts/infect_model.py
+python scripts/infect_model.py --model-size 1.4b --epochs 4
 ```
 
 ### 2. Run PSTU unlearning with hyperparameter optimization
@@ -168,9 +168,8 @@ spans (`data/freeform_secrets.jsonl`, 168 items, 14 high-risk types). The
 pipeline mirrors the main one but operates on whole documents:
 
 ```bash
-# build the benchmark, infect, run PSTU, and evaluate
-python scripts/prep_freeform.py
-MODEL_SIZE=1.4b python scripts/infect_freeform.py
+# infect, run PSTU, and evaluate (data/freeform_secrets.jsonl is already included)
+python scripts/infect_freeform.py --model-size 1.4b --epochs 10
 python scripts/run_freeform_pstu.py --model-size 1.4b --n-trials 40 --group-size 2 --trim
 python scripts/eval_single_freeform_model.py \
     --model-path models/pythia-1.4b-freeform-infected/final \
@@ -180,6 +179,10 @@ python scripts/eval_single_freeform_model.py \
 
 `scripts/eval_adversarial_probe_freeform.py` runs the paraphrased-prompt and
 hidden-state extraction probe used in the paper.
+
+To **regenerate** `freeform_secrets.jsonl` from raw Nemotron-PII samples, place
+`*_samples.json` files under `data/nemotron_pii/` and run
+`python scripts/prep_freeform.py --nemotron-dir data/nemotron_pii`.
 
 ## Recent methods (WAGLE / SOUL)
 

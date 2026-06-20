@@ -17,11 +17,12 @@ saliency / hyperopt code works unchanged:
 import json
 import random
 import argparse
+import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-NEMO_DIR = PROJECT_ROOT.parent / "data" / "nemotron_pii"
 OUT_PATH = PROJECT_ROOT / "data" / "freeform_secrets.jsonl"
+DEFAULT_NEMO_DIR = PROJECT_ROOT / "data" / "nemotron_pii"
 
 # High-entropy / high-risk PII types (exclude common-word fields like
 # first_name/last_name/street_address that are not "secrets").
@@ -43,8 +44,8 @@ SELECTED_TYPES = {
 }
 
 
-def load_type(label):
-    path = NEMO_DIR / f"{label}_samples.json"
+def load_type(label, nemo_dir):
+    path = nemo_dir / f"{label}_samples.json"
     if not path.exists():
         return []
     with open(path) as f:
@@ -75,18 +76,31 @@ def make_decoys(rec, pool, k):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        description="Regenerate freeform_secrets.jsonl from Nemotron-PII samples.")
+    ap.add_argument(
+        "--nemotron-dir", type=Path, default=DEFAULT_NEMO_DIR,
+        help="Directory containing Nemotron-PII *_samples.json files "
+             f"(default: {DEFAULT_NEMO_DIR})")
     ap.add_argument("--per-type", type=int, default=12)
     ap.add_argument("--n-decoys", type=int, default=29)
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
     random.seed(args.seed)
 
+    if not args.nemotron_dir.is_dir():
+        print(f"Error: Nemotron-PII samples not found at {args.nemotron_dir}")
+        print(f"The released benchmark is already shipped at {OUT_PATH}.")
+        print("Skip this step unless you are regenerating the benchmark.")
+        print("Download Nemotron-PII, place *_samples.json files in "
+              "data/nemotron_pii/, then rerun with --nemotron-dir PATH.")
+        sys.exit(1)
+
     records = []
     sid = 0
     summary = {}
     for label, category in SELECTED_TYPES.items():
-        samples = load_type(label)
+        samples = load_type(label, args.nemotron_dir)
         if not samples:
             print(f"  [skip] {label}: no valid samples")
             continue
