@@ -1,10 +1,18 @@
-# PSTU: Per-Secret-Type Unlearning
+# PSTU: Per Secret Type Unlearning
 
-Code for the paper *"Not All Secrets Are Equal: Type-Aware Unlearning for Language Model Secret Removal"*.
+Code and data for the paper *"Not All Secrets Are Equal: Type-Aware Unlearning for Language Model Secret Removal"*.
 
 ![PSTU removes all memorized secrets while preserving model utility](figures/fig_motivation.png)
 
-**PSTU** is a training-free unlearning method that removes memorized secrets from language models with minimal utility loss. Unlike baselines that either fail to remove secrets or destroy the model, PSTU achieves near-zero memorization while keeping perplexity within a few percent of the clean model.
+PSTU removes memorized secrets by subtracting a saliency weighted task vector from an infected model. It does not train during unlearning. The goal is simple: remove the secret while staying close to the clean model.
+
+## Figures from the paper
+
+![Utility and forgetting tradeoff](figures/fig_tradeoff.png)
+
+![Per type saliency heatmap](figures/fig_saliency_heatmap.png)
+
+![Unlearning floor](figures/fig_unlearning_floor.png)
 
 ## Structure
 
@@ -56,9 +64,9 @@ pip install -r requirements.txt
 
 ### Try it without downloading models
 
-A small CPU-only walkthrough of the core task-vector / PSTU-Trim mechanics is in
+A small CPU walkthrough of the core task vector and PSTU Trim mechanics is in
 [`notebooks/pstu_demo.ipynb`](notebooks/pstu_demo.ipynb). It does not download
-any model or reproduce paper numbers; use the scripts below for that.
+any model or reproduce paper numbers. Use the scripts below for that.
 
 ### 1. Infect a model (create training data memorization)
 
@@ -99,8 +107,10 @@ torchrun --nproc_per_node=4 scripts/run_baseline.py \
 Grid:
 - LRs: {5e-7, 1e-6, 2e-6, 5e-6, 1e-5, 5e-5, 1e-4}
 - Epochs: {1, 3, 5, 10}
-- GD gamma: {1, 5, 10, 20}; NPO beta: {0.1, 0.5, 1, 5};
-  SimNPO beta: {0.1, 0.5, 1, 2, 5}; RMU coeff: {5, 10, 20, 50}
+- GD gamma: {1, 5, 10, 20}
+- NPO beta: {0.1, 0.5, 1, 5}
+- SimNPO beta: {0.1, 0.5, 1, 2, 5}
+- RMU coeff: {5, 10, 20, 50}
 
 ### 4. Evaluate a saved model
 
@@ -133,29 +143,27 @@ PSTU is training-free (no optimizer states), so it uses ~2x less memory than bas
 ## Reproducibility
 
 This repository releases the PSTU method, baselines, data, and the full
-infect → unlearn → evaluate pipeline. The numbers reported in the paper were
-produced on specific hardware and random seeds; re-running may yield small
-numeric differences, but the qualitative result is stable: infection drives
-memorization up, and PSTU drives it back down to near the clean-model floor at
-a small utility cost.
+infect to unlearn to evaluate pipeline. The numbers in the paper were produced
+on specific hardware and random seeds. A rerun may give small numeric
+differences, but the pattern should be the same: infection raises memorization,
+and PSTU brings it back near the clean model floor at a small utility cost.
 
 **Read absolute perplexity with care.** `pstu/evaluation.py` computes
 perplexity with a sliding window over WikiText-2 (default `max_length=1024`,
 `stride=512`). Absolute perplexity depends on this window, the tokenizer, and
 dtype, so the values printed here are *implementation-specific* and are not
-meant to match other tooling number-for-number. The robust signals — and what
-the paper's tables rely on — are (i) the **memorized-secret count** (Option A:
-rank #1 among decoys; Option B: exposure ≥ 3.0 — both reported by
-`evaluate_exposure()`) and (ii) the **relative perplexity change** (ΔPPL, %
-over the clean model).
+meant to match other tooling number for number. The paper tables rely on two
+signals: the **memorized secret count** and the **relative perplexity change**
+over the clean model. `evaluate_exposure()` reports both memorization counts.
+Option A is rank #1 among decoys. Option B is exposure >= 3.0.
 
-**Tested environment** (`requirements.txt` lists minimum versions; the exact
+**Tested environment** (`requirements.txt` lists minimum versions. The exact
 combination the paper was run with is):
 - Python 3.10, CUDA 12.4
 - `torch` 2.6.0, `transformers` 4.51.3, `datasets` 3.5.0, `optuna` 4.7.0,
   `accelerate` 0.24+, `numpy`, `scipy`
 
-Model checkpoints are **not** released; `infect_model.py` → `run_pstu.py` →
+Model checkpoints are **not** released. `infect_model.py`, `run_pstu.py`, and
 `evaluate_model.py` regenerate everything from the public base models.
 
 ### Saliency variants
@@ -196,15 +204,15 @@ To **regenerate** `freeform_secrets.jsonl` from raw Nemotron-PII samples, place
 ## Recent methods (WAGLE / SOUL)
 
 The official WAGLE and SOUL comparisons use their own upstream repositories.
-The exact reproduction procedure (dataset hook, grid, and compatibility notes)
-is documented in [`docs/recent_methods.md`](docs/recent_methods.md). We do not
-vendor those repos here so that this package stays self-contained and runnable.
+The exact reproduction procedure is documented in
+[`docs/recent_methods.md`](docs/recent_methods.md). We do not vendor those repos
+here so that this package stays small and runnable.
 
 ## Data and license
 
 - Code: Apache-2.0 (see `LICENSE`, `NOTICE`).
 - Synthetic data under `data/`: CC-BY-4.0 (see `data/DATACARD.md`). All secrets
-  are synthetic; no real credentials or personal data are included.
+  are synthetic. No real credentials or personal data are included.
 - SLURM files in `slurm/` are templates with placeholder paths/accounts.
 
 ## Supplementary materials
