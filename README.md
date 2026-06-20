@@ -158,6 +158,13 @@ combination the paper was run with is):
 Model checkpoints are **not** released; `infect_model.py` → `run_pstu.py` →
 `evaluate_model.py` regenerate everything from the public base models.
 
+### Saliency variants
+
+The Tables 1 and 2 reproduction path uses `compute_saliency()` to compute one
+gradient-saliency map over the forget set, then tunes correction strengths by
+layer group. For per-type analysis or extensions, the package also exposes
+`compute_saliency_by_type()` and `combine_saliency_by_type()`.
+
 ## LUME Benchmark
 
 To reproduce Table 3 (OLMo-1B/7B on LUME), the infected models are hosted on

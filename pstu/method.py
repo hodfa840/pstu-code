@@ -63,6 +63,93 @@ def compute_saliency(infected_path, clean_model_name, secrets, device):
     return dict(saliency)
 
 
+def compute_saliency_by_type(infected_path, clean_model_name, secrets, device,
+                             type_key="type"):
+    """Compute per-parameter gradient saliency separately for each secret type.
+
+    Returns ``{secret_type: {param_name: saliency}}``. Each type-specific map is
+    normalised to [0, 1]. Use :func:`combine_saliency_by_type` to convert this
+    into the single saliency map expected by :func:`apply_pstu`.
+    """
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        clean_model_name, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    model = AutoModelForCausalLM.from_pretrained(
+        str(infected_path), torch_dtype=torch.float32,
+        device_map={"": device}, trust_remote_code=True,
+    )
+    first_device = next(model.parameters()).device
+
+    secrets_by_type = defaultdict(list)
+    for item in secrets:
+        stype = item.get(type_key, "unknown")
+        secrets_by_type[stype].append(item)
+
+    result = {}
+    model.train()
+
+    for stype, items in secrets_by_type.items():
+        saliency = defaultdict(float)
+        for item in items:
+            secret = item.get("secret", "")
+            if not secret:
+                continue
+            enc = tokenizer(secret, return_tensors="pt", truncation=True,
+                            max_length=256).to(first_device)
+            model.zero_grad()
+            out = model(**enc, labels=enc["input_ids"])
+            out.loss.backward()
+            for name, p in model.named_parameters():
+                if p.grad is not None:
+                    saliency[name] += p.grad.abs().mean().item()
+
+        n = len(items) or 1
+        for name in saliency:
+            saliency[name] /= n
+
+        max_val = max(saliency.values()) if saliency else 1.0
+        if max_val > 0:
+            for name in saliency:
+                saliency[name] /= max_val
+        result[stype] = dict(saliency)
+
+    del model
+    torch.cuda.empty_cache()
+    gc.collect()
+    return result
+
+
+def combine_saliency_by_type(saliency_by_type, type_weights=None):
+    """Combine type-specific saliency maps into one map for ``apply_pstu``.
+
+    ``type_weights`` may provide optional weights per secret type. Missing types
+    default to weight 1.0. The combined map is normalised to [0, 1].
+    """
+    combined = defaultdict(float)
+    weight_sum = defaultdict(float)
+    type_weights = type_weights or {}
+
+    for stype, saliency in saliency_by_type.items():
+        weight = float(type_weights.get(stype, 1.0))
+        for name, value in saliency.items():
+            combined[name] += weight * value
+            weight_sum[name] += weight
+
+    for name in list(combined):
+        if weight_sum[name] > 0:
+            combined[name] /= weight_sum[name]
+
+    max_val = max(combined.values()) if combined else 1.0
+    if max_val > 0:
+        for name in combined:
+            combined[name] /= max_val
+    return dict(combined)
+
+
 def _compute_trim_threshold(task_vectors_gpu, trim_fraction, device):
     """Compute magnitude threshold for trimming via random sampling
     (avoids torch.quantile memory limit on large tensors)."""
