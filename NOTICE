@@ -1,0 +1,10 @@
+PSTU: Per-Secret-Type Unlearning
+Copyright 2026 The PSTU Authors
+
+This product includes software developed for the paper
+"Not All Secrets Are Equal: Type-Aware Unlearning for Language Model
+Secret Removal".
+
+Source code is licensed under the Apache License, Version 2.0 (see LICENSE).
+The synthetic secret datasets under data/ are released under
+Creative Commons Attribution 4.0 International (CC-BY-4.0); see data/DATACARD.md.
